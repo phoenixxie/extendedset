@@ -2163,6 +2163,10 @@ public class ConciseSet extends AbstractIntSet implements java.io.Serializable {
         }
     }
 
+    public int getRealSize() {
+        return (lastWordIndex + 1) * 4;
+    }
+
     /**
      * {@inheritDoc}
      */
