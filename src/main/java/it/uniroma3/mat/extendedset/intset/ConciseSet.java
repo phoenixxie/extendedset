@@ -2324,11 +2324,13 @@ public class ConciseSet extends AbstractIntSet implements java.io.Serializable {
         while (true) {
             int data = 0;
             if (itor.isLiteral) {
-                data = itor.word & ~ConciseSetUtils.ALL_ZEROS_LITERAL;
+                data = itor.word;
             } else {
                 data = itor.toLiteral();
             }
-            int word = w | (itor.word << 30);
+            data &= ~ConciseSetUtils.ALL_ZEROS_LITERAL;
+
+            int word = w | (data << 30);
             if (firstWord) {
                 if ((data & 0x1) != 0) {
                     firstTrue = true;
@@ -2339,13 +2341,19 @@ public class ConciseSet extends AbstractIntSet implements java.io.Serializable {
                 answer.appendLiteral(ConciseSetUtils.ALL_ZEROS_LITERAL | word);
             }
             w = data >>> 1;
-            if ((itor.isLiteral && !itor.prepareNext()) ||
-                    (!itor.isLiteral && !itor.prepareNext(1))) {
-                answer.ensureCapacity(answer.lastWordIndex + 2);
-                answer.appendLiteral(ConciseSetUtils.ALL_ZEROS_LITERAL | w);
-                break;
+            if (itor.isLiteral) {
+                if (!itor.prepareNext()) {
+                    break;
+                }
+            } else {
+                if (!itor.prepareNext(1)) {
+                    break;
+                }
             }
         }
+        answer.ensureCapacity(answer.lastWordIndex + 2);
+        answer.appendLiteral(ConciseSetUtils.ALL_ZEROS_LITERAL | w);
+
         if (firstTrue) {
             answer.size = size - 1;
         } else {
