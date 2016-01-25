@@ -2327,7 +2327,6 @@ public class ConciseSet extends AbstractIntSet implements java.io.Serializable {
                 data = itor.word & ~ConciseSetUtils.ALL_ZEROS_LITERAL;
             } else {
                 data = itor.toLiteral();
-
             }
             int word = w | (itor.word << 30);
             if (firstWord) {
@@ -2336,11 +2335,13 @@ public class ConciseSet extends AbstractIntSet implements java.io.Serializable {
                 }
                 firstWord = false;
             } else {
+                answer.ensureCapacity(answer.lastWordIndex + 2);
                 answer.appendLiteral(ConciseSetUtils.ALL_ZEROS_LITERAL | word);
             }
             w = data >>> 1;
             if ((itor.isLiteral && !itor.prepareNext()) ||
                     (!itor.isLiteral && !itor.prepareNext(1))) {
+                answer.ensureCapacity(answer.lastWordIndex + 2);
                 answer.appendLiteral(ConciseSetUtils.ALL_ZEROS_LITERAL | w);
                 break;
             }
