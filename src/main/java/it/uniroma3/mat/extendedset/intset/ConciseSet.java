@@ -2351,8 +2351,10 @@ public class ConciseSet extends AbstractIntSet implements java.io.Serializable {
                 }
             }
         }
-        answer.ensureCapacity(answer.lastWordIndex + 2);
-        answer.appendLiteral(ConciseSetUtils.ALL_ZEROS_LITERAL | w);
+        if (w != 0) {
+            answer.ensureCapacity(answer.lastWordIndex + 2);
+            answer.appendLiteral(ConciseSetUtils.ALL_ZEROS_LITERAL | w);
+        }
 
         if (firstTrue) {
             answer.size = size - 1;
