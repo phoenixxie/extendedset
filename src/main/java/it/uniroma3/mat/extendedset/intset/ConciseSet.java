@@ -2369,6 +2369,65 @@ public class ConciseSet extends AbstractIntSet implements java.io.Serializable {
 
     }
 
+    public int last0() {
+        int index = lastWordIndex;
+        int pos = last;
+
+        while (index >= 0) {
+            int word = words[index--];
+
+            if (isOneSequence(word)) {
+                int cnt = maxLiteralLengthMultiplication(getSequenceCount(word) + 1);
+                pos -= cnt;
+                if (!simulateWAH) {
+                    if (!isSequenceWithNoBits(word)) {
+                        int off = (0x3FFFFFFF & word) >>> 25;
+                        return pos + off;
+                    }
+                }
+                continue;
+            }
+
+            if (isLiteral(word)) {
+                int sz = (pos + 1) % ConciseSetUtils.MAX_LITERAL_LENGTH;
+                if (sz == 0) {
+                    sz = ConciseSetUtils.MAX_LITERAL_LENGTH;
+                }
+
+                if (word == ConciseSetUtils.ALL_ONES_LITERAL) {
+                    pos -= sz;
+                    continue;
+                }
+                int mask = 1 << (sz - 1);
+                for (int i = 0; i < sz; i++) {
+                    if ((word & mask) == 0) {
+                        return pos;
+                    }
+                    mask >>= 1;
+                    --pos;
+                }
+                continue;
+            }
+
+            if (simulateWAH || isSequenceWithNoBits(word)) {
+                return pos;
+            } else {
+                int ws = getSequenceCount(word) + 1;
+                if (ws > 1) {
+                    return pos;
+                }
+                int off = (0x3FFFFFFF & word) >>> 25;
+                if (off == 31) {
+                    return pos - 1;
+                } else {
+                    return pos;
+                }
+            }
+        }
+
+        return -1;
+    }
+
     /**
      * Possible operations
      */
