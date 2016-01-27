@@ -2428,6 +2428,249 @@ public class ConciseSet extends AbstractIntSet implements java.io.Serializable {
         return -1;
     }
 
+    public LTLIterator getLTLIterator() {
+        return new LTLIterator();
+    }
+
+    public class LTLIterator {
+        int wordIndex;
+        int realPos;
+        boolean isEnd;
+        int wordStartPos;
+        int posInWord;
+
+        int curWord;
+        int curWordLen;
+        boolean curBit;
+
+        boolean isLiteral;
+        boolean isOneSeq;
+        int flipBit;
+
+        public LTLIterator() {
+            wordIndex = 0;
+            realPos = 0;
+            wordStartPos = 0;
+            posInWord = 0;
+            isEnd = false;
+
+            if (isEmpty()) {
+                isEnd = true;
+            } else {
+                updateWord();
+            }
+        }
+
+        private LTLIterator(int wordIndex, int realPos, int wordStartPos, int posInWord) {
+            this.wordIndex = wordIndex;
+            this.realPos = realPos;
+            this.wordStartPos = wordStartPos;
+            this.posInWord = posInWord;
+
+            if (isEmpty()) {
+                isEnd = true;
+            } else if (realPos > last) {
+                isEnd = true;
+            } else {
+                updateWord();
+            }
+        }
+
+        public int index() {
+            return realPos;
+        }
+
+        public boolean isEnd() {
+            return isEnd;
+        }
+
+        public boolean currentBit() {
+            updateCurrentBit();
+            return curBit;
+        }
+
+        private void updateCurrentBit() {
+            if (isLiteral) {
+                int mask = 1 << posInWord;
+                curBit = ((mask & curWord) != 0);
+            } else {
+                curBit = isOneSeq;
+                if (flipBit == posInWord) {
+                    curBit = !curBit;
+                }
+            }
+        }
+
+        private void updateWord() {
+            curWord = words[wordIndex];
+            if (isLiteral(curWord)) {
+                isLiteral = true;
+                curWordLen = ConciseSetUtils.MAX_LITERAL_LENGTH;
+                if (wordStartPos + curWordLen > last + 1) { // last literal word
+                    curWordLen = last + 1 - wordStartPos;
+                }
+            } else {
+                isLiteral = false;
+                curWordLen = maxLiteralLengthMultiplication(1 + getSequenceCount(curWord));
+                isOneSeq = isOneSequence(curWord);
+                flipBit = -1;
+                if (!simulateWAH) {
+                    flipBit = getFlippedBit(curWord);
+                }
+            }
+        }
+
+        private boolean nextWord() {
+            if (wordIndex == lastWordIndex) {
+                realPos = last + 1;
+                isEnd = true;
+                return false;
+            }
+
+            wordStartPos += curWordLen;
+            ++wordIndex;
+            updateWord();
+
+            return true;
+        }
+
+        public void moveForward(int offset) {
+            if (realPos + offset > last + 1) {
+                throw new IndexOutOfBoundsException();
+            }
+
+            if (realPos + offset == last + 1) {
+                isEnd = true;
+                realPos = last + 1;
+                return;
+            }
+
+            realPos += offset;
+            while (wordStartPos + curWordLen <= realPos) {
+                if (!nextWord()) {
+                    return;
+                }
+            }
+            posInWord = realPos - wordStartPos;
+        }
+
+        private boolean next0() {
+            if (isEnd) {
+                throw new IndexOutOfBoundsException();
+            }
+
+            updateCurrentBit();
+            if (!curBit) {
+                return true;
+            }
+
+            while (wordIndex <= lastWordIndex) {
+                if (isLiteral) {
+                    if (curWord != ConciseSetUtils.ALL_ONES_LITERAL) {
+                        int mask = 1 << posInWord;
+                        for (; posInWord < curWordLen; ++posInWord) {
+                            if ((mask & curWord) == 0) {
+                                return true;
+                            }
+                            mask <<= 1;
+                        }
+                    }
+                } else {
+                    if (isOneSeq) {
+                        if (posInWord < flipBit) {
+                            posInWord = flipBit;
+                            return true;
+                        }
+                    } else {
+                        if (posInWord == flipBit && flipBit + 1 < curWordLen) {
+                            posInWord = flipBit + 1;
+                        }
+                    }
+                }
+
+                if (!nextWord()) {
+                    return false;
+                }
+                posInWord = 0;
+            }
+
+            return false;
+        }
+
+        public LTLIterator find0() {
+            if (isEnd) {
+                throw new IndexOutOfBoundsException();
+            }
+
+            LTLIterator itor = new LTLIterator(wordIndex, realPos, wordStartPos, posInWord);
+            if (itor.next0()) {
+                itor.realPos = itor.wordStartPos + itor.posInWord;
+                return itor;
+            }
+
+            return null;
+        }
+
+        private boolean next1() {
+            if (isEnd) {
+                throw new IndexOutOfBoundsException();
+            }
+
+            updateCurrentBit();
+            if (curBit) {
+                return true;
+            }
+
+            while (wordIndex <= lastWordIndex) {
+                if (isLiteral) {
+                    if (curWord != ConciseSetUtils.ALL_ZEROS_LITERAL) {
+                        int mask = 1 << posInWord;
+                        for (; posInWord < curWordLen; ++posInWord) {
+                            if ((mask & curWord) != 0) {
+                                return true;
+                            }
+                            mask <<= 1;
+                        }
+                    }
+                } else {
+                    if (!isOneSeq) {
+                        if (posInWord < flipBit) {
+                            posInWord = flipBit;
+                            return true;
+                        }
+                    } else {
+                        if (posInWord == flipBit && flipBit + 1 < curWordLen) {
+                            posInWord = flipBit + 1;
+                        }
+                    }
+                }
+
+                if (!nextWord()) {
+                    return false;
+                }
+                posInWord = 0;
+            }
+
+            return false;
+        }
+
+        public LTLIterator find1() {
+            if (isEnd) {
+                throw new IndexOutOfBoundsException();
+            }
+
+            LTLIterator itor = new LTLIterator(wordIndex, realPos, wordStartPos, posInWord);
+            if (itor.next1()) {
+                itor.realPos = itor.wordStartPos + itor.posInWord;
+                return itor;
+            }
+
+
+            return null;
+        }
+
+    }
+
     /**
      * Possible operations
      */
