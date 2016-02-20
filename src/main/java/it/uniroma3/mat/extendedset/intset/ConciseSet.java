@@ -1323,6 +1323,48 @@ public class ConciseSet extends AbstractIntSet implements java.io.Serializable {
         return true;
     }
 
+    public void addMany(int start, int count) {
+        if (count <= 0) {
+            return;
+        }
+
+        int end = start + count;
+        int next = start + ConciseSetUtils.MAX_LITERAL_LENGTH;
+        next -= maxLiteralLengthModulus(next);
+
+        int i = start;
+        for (; i < next && i < end; ++i)
+        {
+            append(i);
+        }
+
+        if (i == end)
+        {
+            return;
+        }
+
+        start = next;
+        count = end - start;
+
+        int segs = maxLiteralLengthDivision(count);
+
+        if (segs > 0) {
+            ensureCapacity(lastWordIndex + 1);
+            appendFill(segs, ConciseSetUtils.SEQUENCE_BIT);
+            int bits = maxLiteralLengthMultiplication(segs);
+            size += bits;
+            start += bits;
+            last = start - 1;
+        }
+
+        if (start < end) {
+            ensureCapacity(lastWordIndex + 1);
+            for (i = start; i < end; ++i) {
+                append(i);
+            }
+        }
+    }
+
     /**
      * {@inheritDoc}
      */
